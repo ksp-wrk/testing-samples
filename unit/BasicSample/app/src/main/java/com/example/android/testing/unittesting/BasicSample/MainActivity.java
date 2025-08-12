@@ -1,4 +1,4 @@
-package com.example.simnumberapp;
+package com.example.android.testing.unittesting.BasicSample;
 
 import android.app.Activity;
 import android.content.Context;
