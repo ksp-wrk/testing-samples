@@ -22,8 +22,15 @@ jobs:
       - name: List APK files
         run: ls -R ./unit/BasicSample/app/build/outputs/apk/
 
-      - name: Upload APK
+      - name: Prepare output folder with build number
+        id: prep_folder
+        run: |
+          # Use GitHub run number for uniqueness
+          mkdir -p ../output/app-debug-${{ github.run_number }}
+          cp ./app/build/outputs/apk/debug/app-debug.apk ../output/app-debug-${{ github.run_number }}/
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BasicSample-debug-apk
-          path: unit/BasicSample/app/build/outputs/apk/debug/app-debug.apk
+          name: app-debug-${{ github.run_number }}
+          path: output/app-debug-${{ github.run_number }}/app-debug.apk
