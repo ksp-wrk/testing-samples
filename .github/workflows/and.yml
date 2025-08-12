@@ -1,7 +1,7 @@
 name: Build RecyclerViewSample APK
 
 on:
-  workflow_dispatch:   # ম্যানুয়ালি GitHub UI থেকে রান করার জন্য
+  workflow_dispatch:
 
 jobs:
   build:
@@ -11,20 +11,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up JDK 8
+      - name: Set up JDK 11
         uses: actions/setup-java@v3
         with:
-          distribution: 'adoptopenjdk'
-          java-version: '8'
+          distribution: 'temurin'
+          java-version: '11'
 
-      - name: Set up Android SDK
-        uses: reactivecircus/android-sdk@v3
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v2
         with:
           api-level: 28
-          target: default
-          arch: x86_64
+          build-tools-version: 28.0.3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ui/espresso/RecyclerViewSample/gradlew
 
       - name: Build APK
-        run: |
-          cd ui/espresso/RecyclerViewSample
-          ./gradlew assembleDebug
+        run: ./ui/espresso/RecyclerViewSample/gradlew assembleDebug
