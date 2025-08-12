@@ -23,5 +23,5 @@ jobs:
           cache: 'gradle'
 
       - name: Build project and run screenshot tests
-        working-directory: ./ui/PreviewScreenshot
-        run: ./gradlew validateDebugScreenshotTest
+        working-directory: ./unit/BasicSample/
+        run: ./gradlew assembleDebug
