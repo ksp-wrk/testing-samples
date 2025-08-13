@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
 
     private List<String> extractNumbers(String text) {
         List<String> result = new ArrayList<>();
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\+?\d{8,15}");
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\+?\\d{8,15}");
         java.util.regex.Matcher matcher = pattern.matcher(text);
         while (matcher.find()) {
             result.add(matcher.group());
