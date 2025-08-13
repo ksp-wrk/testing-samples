@@ -34,3 +34,6 @@ jobs:
         with:
           name: app-debug-${{ github.run_number }}
           path: output/app-debug-${{ github.run_number }}/app-debug.apk
+
+      - name: Check copied APK
+        run: ls -l output/app-debug-${{ github.run_number }}/
