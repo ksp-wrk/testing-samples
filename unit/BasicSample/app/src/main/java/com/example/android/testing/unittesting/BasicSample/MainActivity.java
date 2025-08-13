@@ -3,6 +3,8 @@ package com.example.android.testing.unittesting.BasicSample;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -15,7 +17,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executor;
 
 public class MainActivity extends Activity {
     private final String TAG = "SystemUssd";
@@ -40,15 +41,14 @@ public class MainActivity extends Activity {
                 return;
             }
 
+            Handler handler = new Handler(Looper.getMainLooper());
+
             for (SubscriptionInfo sub : subs) {
                 int subId = sub.getSubscriptionId();
                 Log.i(TAG, "Sending USSD for subId=" + subId + ", slot=" + sub.getSimSlotIndex());
 
                 TelephonyManager tm = ((TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE))
                         .createForSubscriptionId(subId);
-
-                // Executor ঠিকভাবে define করা
-                Executor executor = Runnable::run;
 
                 UssdResponseCallback callback = new UssdResponseCallback() {
                     @Override
@@ -66,7 +66,8 @@ public class MainActivity extends Activity {
 
                 String ussd = "*2#";
                 try {
-                    tm.sendUssdRequest(ussd, callback, executor);
+                    // Executor না, এখন Handler use করবো
+                    tm.sendUssdRequest(ussd, callback, handler);
                 } catch (Exception e) {
                     Log.e(TAG, "Failed to send USSD on subId=" + subId + ": " + e.getMessage());
                 }
