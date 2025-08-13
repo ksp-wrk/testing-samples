@@ -34,4 +34,5 @@ dependencies {
     // Unit testing dependencies.
     testImplementation "junit:junit:" + rootProject.junitVersion;
     testImplementation "org.mockito:mockito-core:" + rootProject.mockitoVersion;
+    implementation 'androidx.core:core:1.13.1'
 }
