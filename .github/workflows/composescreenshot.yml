@@ -37,9 +37,8 @@ jobs:
 
       - name: Check copied APK
         run: ls -l output/app-debug-${{ github.run_number }}/
-
+     
       - name: Commit and push APK to repo
-        working-directory: ./unit/BasicSample/
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
