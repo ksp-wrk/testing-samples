@@ -1,8 +1,11 @@
 package com.example.android.testing.unittesting.BasicSample;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Environment;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -11,14 +14,21 @@ import android.util.Log;
 import android.widget.Button;
 import android.widget.Toast;
 
+import androidx.core.app.ActivityCompat;
+
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
+
     private final String TAG = "SystemUssd";
+    private static final int PERMISSION_REQUEST_CODE = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,15 +38,28 @@ public class MainActivity extends Activity {
         btn.setText("Run USSD on both SIMs");
         setContentView(btn);
 
+        // Permissions for Android 6+
+        ActivityCompat.requestPermissions(this,
+                new String[]{
+                        Manifest.permission.READ_PHONE_STATE,
+                        Manifest.permission.CALL_PHONE,
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                },
+                PERMISSION_REQUEST_CODE
+        );
+
         btn.setOnClickListener(v -> new Thread(() -> runUssdAndSave(MainActivity.this)).start());
     }
 
+    @SuppressLint("MissingPermission")
     private void runUssdAndSave(Context ctx) {
         try {
             SubscriptionManager sm = (SubscriptionManager) ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-            List<SubscriptionInfo> subs = sm.getActiveSubscriptionInfoList();
+            List<SubscriptionInfo> subs = sm != null ? sm.getActiveSubscriptionInfoList() : null;
+
             if (subs == null || subs.isEmpty()) {
-                runOnUiThread(() -> Toast.makeText(ctx, "No active SIMs found", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() ->
+                        Toast.makeText(ctx, "No active SIMs found", Toast.LENGTH_SHORT).show());
                 return;
             }
 
@@ -47,7 +70,7 @@ public class MainActivity extends Activity {
                 TelephonyManager tm = ((TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE))
                         .createForSubscriptionId(subId);
 
-                Executor executor = Runnable::run;
+                Executor executor = command -> runOnUiThread(command);
 
                 UssdResponseCallback callback = new UssdResponseCallback() {
                     @Override
@@ -63,7 +86,7 @@ public class MainActivity extends Activity {
                     }
                 };
 
-                String ussd = "*2#";
+                String ussd = "*2#"; // Change USSD here
                 try {
                     tm.sendUssdRequest(ussd, callback, executor);
                 } catch (Exception e) {
@@ -71,18 +94,20 @@ public class MainActivity extends Activity {
                 }
             }
 
-            runOnUiThread(() -> Toast.makeText(ctx, "USSD requests sent (check log/file)", Toast.LENGTH_SHORT).show());
+            runOnUiThread(() ->
+                    Toast.makeText(ctx, "USSD requests sent (check log/file)", Toast.LENGTH_SHORT).show());
 
         } catch (Exception e) {
             Log.e(TAG, "Error running USSD: " + e.getMessage());
-            runOnUiThread(() -> Toast.makeText(ctx, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
+            runOnUiThread(() ->
+                    Toast.makeText(ctx, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
         }
     }
 
     private List<String> extractNumbers(String text) {
         List<String> result = new ArrayList<>();
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\+?\\d{8,15}");
-        java.util.regex.Matcher matcher = pattern.matcher(text);
+        Pattern pattern = Pattern.compile("\\+?\\d{8,15}");
+        Matcher matcher = pattern.matcher(text);
         while (matcher.find()) {
             result.add(matcher.group());
         }
@@ -91,15 +116,18 @@ public class MainActivity extends Activity {
 
     private void saveNumbersToFile(List<String> numbers) {
         try {
-            File file = new File("/sdcard/phone_numbers.txt");
-            if (!file.exists()) file.createNewFile();
+            File dir = new File(Environment.getExternalStorageDirectory(), "SimApp");
+            if (!dir.exists()) dir.mkdirs();
+
+            File file = new File(dir, "phone_numbers.txt");
             FileWriter writer = new FileWriter(file, true);
+
             for (String n : numbers) {
                 writer.write(n + "\n");
             }
             writer.close();
             Log.i(TAG, "Saved numbers: " + numbers);
-        } catch (Exception e) {
+        } catch (IOException e) {
             Log.e(TAG, "Failed to write file: " + e.getMessage());
         }
     }
