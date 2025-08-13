@@ -3,8 +3,6 @@ package com.example.android.testing.unittesting.BasicSample;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -49,7 +47,8 @@ public class MainActivity extends Activity {
                 TelephonyManager tm = ((TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE))
                         .createForSubscriptionId(subId);
 
-                Executor executor = command -> new Handler(Looper.getMainLooper()).post(command);
+                // Executor ঠিকভাবে define করা
+                Executor executor = Runnable::run;
 
                 UssdResponseCallback callback = new UssdResponseCallback() {
                     @Override
@@ -93,7 +92,7 @@ public class MainActivity extends Activity {
 
     private void saveNumbersToFile(List<String> numbers) {
         try {
-            File file = new File(getExternalFilesDir(null), "phone_numbers.txt");
+            File file = new File("/sdcard/phone_numbers.txt");
             if (!file.exists()) file.createNewFile();
             FileWriter writer = new FileWriter(file, true);
             for (String n : numbers) {
