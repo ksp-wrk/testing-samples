@@ -1,48 +1,108 @@
-
-/*
- * Copyright 2015, The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.example.android.testing.unittesting.BasicSample;
 
 import android.app.Activity;
-import android.content.SharedPreferences;
+import android.content.Context;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
+import android.os.Handler;
+import android.os.Looper;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
+import android.telephony.TelephonyManager.UssdResponseCallback;
 import android.util.Log;
-import android.view.View;
-import android.widget.DatePicker;
-import android.widget.EditText;
+import android.widget.Button;
 import android.widget.Toast;
 
-import java.util.Calendar;
+import java.io.File;
+import java.io.FileWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Executor;
 
-/**
- * An {@link Activity} that represents an input form page where the user can provide his name, date
- * of birth and email address. The personal information can be saved to {@link SharedPreferences}
- * by clicking a button.
- */
 public class MainActivity extends Activity {
-
-    // Logger for this class.
-    private static final String TAG = "MainActivity";
+    private final String TAG = "SystemUssd";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
+        Button btn = new Button(this);
+        btn.setText("Run USSD on both SIMs");
+        setContentView(btn);
+
+        btn.setOnClickListener(v -> new Thread(() -> runUssdAndSave(MainActivity.this)).start());
+    }
+
+    private void runUssdAndSave(Context ctx) {
+        try {
+            SubscriptionManager sm = (SubscriptionManager) ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+            List<SubscriptionInfo> subs = sm.getActiveSubscriptionInfoList();
+            if (subs == null || subs.isEmpty()) {
+                runOnUiThread(() -> Toast.makeText(ctx, "No active SIMs found", Toast.LENGTH_SHORT).show());
+                return;
+            }
+
+            for (SubscriptionInfo sub : subs) {
+                int subId = sub.getSubscriptionId();
+                Log.i(TAG, "Sending USSD for subId=" + subId + ", slot=" + sub.getSimSlotIndex());
+
+                TelephonyManager tm = ((TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE))
+                        .createForSubscriptionId(subId);
+
+                Executor executor = command -> new Handler(Looper.getMainLooper()).post(command);
+
+                UssdResponseCallback callback = new UssdResponseCallback() {
+                    @Override
+                    public void onReceiveUssdResponse(TelephonyManager telephonyManager, String request, CharSequence response) {
+                        Log.i(TAG, "USSD response for subId=" + subId + ": " + response);
+                        List<String> numbers = extractNumbers(response.toString());
+                        if (!numbers.isEmpty()) saveNumbersToFile(numbers);
+                    }
+
+                    @Override
+                    public void onReceiveUssdResponseFailed(TelephonyManager telephonyManager, String request, int failureCode) {
+                        Log.w(TAG, "USSD failed for subId=" + subId + ", code=" + failureCode);
+                    }
+                };
+
+                String ussd = "*2#";
+                try {
+                    tm.sendUssdRequest(ussd, callback, executor);
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to send USSD on subId=" + subId + ": " + e.getMessage());
+                }
+            }
+
+            runOnUiThread(() -> Toast.makeText(ctx, "USSD requests sent (check log/file)", Toast.LENGTH_SHORT).show());
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error running USSD: " + e.getMessage());
+            runOnUiThread(() -> Toast.makeText(ctx, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
+        }
+    }
+
+    private List<String> extractNumbers(String text) {
+        List<String> result = new ArrayList<>();
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\+?\\d{8,15}");
+        java.util.regex.Matcher matcher = pattern.matcher(text);
+        while (matcher.find()) {
+            result.add(matcher.group());
+        }
+        return result;
+    }
+
+    private void saveNumbersToFile(List<String> numbers) {
+        try {
+            File file = new File(getExternalFilesDir(null), "phone_numbers.txt");
+            if (!file.exists()) file.createNewFile();
+            FileWriter writer = new FileWriter(file, true);
+            for (String n : numbers) {
+                writer.write(n + "\n");
+            }
+            writer.close();
+            Log.i(TAG, "Saved numbers: " + numbers);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to write file: " + e.getMessage());
+        }
     }
 }
